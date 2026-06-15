@@ -1,15 +1,20 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Cropper from './components/Cropper';
 import ParamPanel from './components/ParamPanel';
 import Preview from './components/Preview';
 import ModelManager from './components/ModelManager';
 import { presets } from './specs';
-import { ApiError, useApi, type ProcessResult } from './hooks/useApi';
+import {
+  useElectronApi,
+  type ElectronModelStatusItem,
+  type ProcessResult,
+} from './hooks/useElectronApi';
 import './App.css';
 
 type AppState = 'idle' | 'cropping' | 'processing' | 'done';
+
 type MissingModelNotice = {
-  mode: 'fast' | 'precise';
+  modelKey: string;
   name: string;
   message: string;
 };
@@ -17,21 +22,35 @@ type MissingModelNotice = {
 export default function App() {
   const [state, setState] = useState<AppState>('idle');
   const [showModelManager, setShowModelManager] = useState(false);
-  const [modelManagerInitialMode, setModelManagerInitialMode] = useState<'fast' | 'precise' | null>(null);
+  const [modelManagerInitialKey, setModelManagerInitialKey] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessResult | null>(null);
   const [error, setError] = useState('');
   const [missingModelNotice, setMissingModelNotice] = useState<MissingModelNotice | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState('one-inch');
   const [outputFormat, setOutputFormat] = useState('jpg');
+  const [modelOptions, setModelOptions] = useState<ElectronModelStatusItem[]>([]);
+  const [selectedModelKey, setSelectedModelKey] = useState('');
 
-  const { processImage, getModelStatus } = useApi();
+  const { getModelStatus, processPhoto, saveFile, setSelectedModel } = useElectronApi();
 
-  const selectedPreset = presets.find((p) => p.id === selectedPresetId);
+  const selectedPreset = presets.find((preset) => preset.id === selectedPresetId);
   const aspectRatio =
     selectedPreset && selectedPreset.width_px && selectedPreset.height_px
       ? selectedPreset.width_px / selectedPreset.height_px
       : null;
+
+  const refreshModels = useCallback(async () => {
+    const status = await getModelStatus();
+    setModelOptions(status.models);
+    setSelectedModelKey(status.selected_model);
+  }, [getModelStatus]);
+
+  useEffect(() => {
+    refreshModels().catch((err) => {
+      setError(err instanceof Error ? err.message : '获取模型状态失败');
+    });
+  }, [refreshModels]);
 
   const handleCrop = useCallback((base64: string) => {
     setCroppedImage(base64);
@@ -40,93 +59,66 @@ export default function App() {
     setError('');
   }, []);
 
-  const handleProcess = useCallback(
-    async (params: {
-      width_px: number;
-      height_px: number;
-      dpi: number;
-      bg_color: string;
-      format: string;
-      max_size_kb?: number;
-      mode: 'fast' | 'precise';
-    }) => {
-      if (!croppedImage) return;
-      setError('');
-      setMissingModelNotice(null);
+  const handleProcess = useCallback(async (params: {
+    width_px: number;
+    height_px: number;
+    dpi: number;
+    bg_color: string;
+    format: string;
+    max_size_kb?: number;
+    model_key: string;
+  }) => {
+    if (!croppedImage) return;
 
-      if (params.mode === 'precise') {
-        try {
-          const modelStatus = await getModelStatus();
-          if (!modelStatus.precise.downloaded) {
-            setMissingModelNotice({
-              mode: 'precise',
-              name: modelStatus.precise.name,
-              message: '精准模式依赖 BiRefNet 模型。当前本地未下载，先下载后才能处理图片。',
-            });
-            setShowModelManager(false);
-            return;
-          }
-        } catch {
-          // Ignore preflight status failure and let the backend be the source of truth.
-        }
-      }
+    setError('');
+    setMissingModelNotice(null);
 
-      setState('processing');
-
-      try {
-        setOutputFormat(params.format);
-        const res = await processImage({
-          image_base64: croppedImage,
-          matting_mode: params.mode,
-          bg_color: params.bg_color,
-          output_mode: 'px',
-          width_px: params.width_px,
-          height_px: params.height_px,
-          dpi: params.dpi,
-          format: params.format,
-          max_size_kb: params.max_size_kb ?? null,
+    try {
+      const status = await getModelStatus();
+      const model = status.models.find((item) => item.key === params.model_key);
+      if (!model?.downloaded) {
+        setMissingModelNotice({
+          modelKey: params.model_key,
+          name: model?.name ?? '所选模型',
+          message: `处理前需要先下载 ${model?.name ?? '所选模型'}。`,
         });
-        setResult(res);
-        setState('done');
-      } catch (err) {
-        if (err instanceof ApiError && err.code === 'MODEL_MISSING_PRECISE') {
-          setMissingModelNotice({
-            mode: err.missingModel?.mode ?? 'precise',
-            name: err.missingModel?.name ?? 'BiRefNet',
-            message: err.message,
-          });
-          setError('');
-        } else {
-          setError(err instanceof Error ? err.message : '处理失败');
-        }
-        setState('cropping');
+        setShowModelManager(false);
+        return;
       }
-    },
-    [croppedImage, getModelStatus, processImage],
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取模型状态失败');
+      return;
+    }
+
+    setState('processing');
+
+    try {
+      setOutputFormat(params.format);
+      const processed = await processPhoto({
+        image_base64: croppedImage,
+        model_key: params.model_key,
+        bg_color: params.bg_color,
+        width_px: params.width_px,
+        height_px: params.height_px,
+        dpi: params.dpi,
+        format: params.format,
+        max_size_kb: params.max_size_kb,
+      });
+      setResult(processed);
+      setState('done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '处理失败');
+      setState('cropping');
+    }
+  }, [croppedImage, getModelStatus, processPhoto]);
 
   const handleDownload = useCallback(async () => {
     if (!result) return;
 
     const ext = outputFormat === 'png' ? 'png' : 'jpg';
-    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
     const fileName = `证件照_${result.width_px}x${result.height_px}.${ext}`;
-
-    // In Electron, prefer the native save dialog via IPC
-    if (window.electronAPI?.saveFile) {
-      await window.electronAPI.saveFile(result.result_base64, fileName);
-      return;
-    }
-
-    // Browser fallback: create a data URI and trigger download
-    const dataUri = `data:${mimeType};base64,${result.result_base64}`;
-    const link = document.createElement('a');
-    link.href = dataUri;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [result, outputFormat]);
+    await saveFile(result.result_base64, fileName);
+  }, [outputFormat, result, saveFile]);
 
   const handleNewImage = useCallback(() => {
     setCroppedImage(null);
@@ -136,15 +128,26 @@ export default function App() {
     setMissingModelNotice(null);
   }, []);
 
-  const openModelManager = useCallback((mode: 'fast' | 'precise' | null = null) => {
-    setModelManagerInitialMode(mode);
+  const openModelManager = useCallback((modelKey: string | null = null) => {
+    setModelManagerInitialKey(modelKey);
     setShowModelManager(true);
   }, []);
 
-  const closeModelManager = useCallback(() => {
+  const closeModelManager = useCallback(async () => {
     setShowModelManager(false);
-    setModelManagerInitialMode(null);
-  }, []);
+    setModelManagerInitialKey(null);
+    await refreshModels();
+  }, [refreshModels]);
+
+  const handleSelectModel = useCallback(async (modelKey: string) => {
+    setSelectedModelKey(modelKey);
+    try {
+      await setSelectedModel(modelKey);
+      await refreshModels();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '设置默认模型失败');
+    }
+  }, [refreshModels, setSelectedModel]);
 
   return (
     <div className="app">
@@ -154,7 +157,7 @@ export default function App() {
           type="button"
           className="btn-icon"
           title="模型管理"
-          onClick={() => openModelManager(null)}
+          onClick={() => openModelManager(selectedModelKey || null)}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
@@ -204,11 +207,7 @@ export default function App() {
                 resultFileSize={result.actual_size_kb}
               />
               <div className="result-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleNewImage}
-                >
+                <button type="button" className="btn btn-secondary" onClick={handleNewImage}>
                   处理新照片
                 </button>
               </div>
@@ -223,12 +222,18 @@ export default function App() {
             onDownload={handleDownload}
             processing={state === 'processing'}
             imageCropped={croppedImage !== null}
+            presetId={selectedPresetId}
+            onPresetChange={setSelectedPresetId}
+            modelOptions={modelOptions}
+            selectedModelKey={selectedModelKey}
+            onSelectModel={handleSelectModel}
+            onOpenModelManager={openModelManager}
           />
         </div>
       </main>
 
       {showModelManager && (
-        <ModelManager onClose={closeModelManager} initialDownloadMode={modelManagerInitialMode} />
+        <ModelManager onClose={closeModelManager} initialModelKey={modelManagerInitialKey} />
       )}
 
       {missingModelNotice && (
@@ -236,11 +241,7 @@ export default function App() {
           <div className="modal-content notice-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>需要先下载模型</h3>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setMissingModelNotice(null)}
-              >
+              <button type="button" className="modal-close" onClick={() => setMissingModelNotice(null)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
@@ -248,9 +249,9 @@ export default function App() {
             </div>
             <div className="modal-body">
               <div className="notice-copy">
-                <p className="notice-title">{missingModelNotice.name} 未下载</p>
+                <p className="notice-title">{missingModelNotice.name} 未就绪</p>
                 <p className="notice-text">{missingModelNotice.message}</p>
-                <p className="notice-hint">打开模型管理后会自动开始下载，下载完成即可继续使用精准模式。</p>
+                <p className="notice-hint">打开模式资源管理后可准备所选模式，完成后即可继续处理。</p>
               </div>
               <div className="notice-actions">
                 <button
@@ -258,7 +259,7 @@ export default function App() {
                   className="btn btn-primary"
                   onClick={() => {
                     setMissingModelNotice(null);
-                    openModelManager(missingModelNotice.mode);
+                    openModelManager(missingModelNotice.modelKey);
                   }}
                 >
                   下载并继续

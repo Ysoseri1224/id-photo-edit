@@ -1,22 +1,68 @@
 {
   "name": "id-photo-tool",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "证件照处理桌面工具",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"python backend/main.py --port 8765\" \"cd frontend && npm run dev -- --strictPort\"",
-    "electron:dev": "concurrently \"cd frontend && npm run dev -- --strictPort\" \"tsc -p electron/tsconfig.json && electron .\"",
+    "dev": "npm run electron:dev",
+    "electron:dev": "concurrently \"cd frontend && npm run dev -- --strictPort\" \"powershell -NoProfile -Command npm run build:electron; electron .\"",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:frontend": "cd frontend && npm run build",
+    "build:matting-helper": "pyinstaller --noconfirm --clean --onefile --name matting-helper-win-x64 tools/matting_helper.py",
     "build": "npm run build:frontend && npm run build:electron",
+    "dist": "npm run build && electron-builder install-app-deps && electron-builder --win nsis",
     "start": "electron ."
   },
+  "build": {
+    "appId": "com.ysoseri.idphotoedit",
+    "productName": "证件照处理工具",
+    "directories": {
+      "output": "release-build"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist-frontend/**/*",
+      "dist/matting-helper-win-x64.exe",
+      "models/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "dist/matting-helper-win-x64.exe",
+      "models/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/sharp/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/matting-helper-win-x64.exe",
+        "to": "helpers/matting-helper-win-x64.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "id-photo-edit-${version}-setup.${ext}"
+    }
+  },
   "devDependencies": {
+    "concurrently": "^8.2.0",
     "electron": "^31.0.0",
-    "typescript": "^5.5.0",
-    "concurrently": "^8.2.0"
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.5.0"
   },
   "dependencies": {
-    "electron-is-dev": "^2.0.0"
+    "electron-is-dev": "^2.0.0",
+    "onnxruntime-node": "^1.26.0",
+    "sharp": "^0.35.1"
   }
 }

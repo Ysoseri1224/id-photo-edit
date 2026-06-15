@@ -313,13 +313,26 @@ export default function Cropper({ aspectRatio, onCrop }: CropperProps) {
     const sw = cropBox.w / scale;
     const sh = cropBox.h / scale;
 
+    if (![sx, sy, sw, sh].every(Number.isFinite) || sw <= 1 || sh <= 1) {
+      alert('当前裁剪区域无效，请调整后重试');
+      return;
+    }
+
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = Math.round(sw);
     tempCanvas.height = Math.round(sh);
+    if (tempCanvas.width < 1 || tempCanvas.height < 1) {
+      alert('当前裁剪区域过小，请调整后重试');
+      return;
+    }
     const ctx = tempCanvas.getContext('2d')!;
     ctx.drawImage(imageEl, sx, sy, sw, sh, 0, 0, tempCanvas.width, tempCanvas.height);
 
     const base64 = tempCanvas.toDataURL('image/png');
+    if (!base64 || base64 === 'data:,' || !base64.startsWith('data:image/png;base64,')) {
+      alert('裁剪结果生成失败，请重新裁剪后重试');
+      return;
+    }
     onCrop(base64);
   };
 

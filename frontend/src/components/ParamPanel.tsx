@@ -8,7 +8,13 @@ interface ProcessParams {
   bg_color: string;
   format: string;
   max_size_kb?: number;
-  mode: 'fast' | 'precise';
+  model_key: string;
+}
+
+interface ModelOption {
+  key: string;
+  name: string;
+  recommended?: boolean;
 }
 
 interface ParamPanelProps {
@@ -17,6 +23,12 @@ interface ParamPanelProps {
   onDownload: () => void;
   processing: boolean;
   imageCropped: boolean;
+  presetId: string;
+  onPresetChange: (presetId: string) => void;
+  modelOptions: ModelOption[];
+  selectedModelKey: string;
+  onSelectModel: (modelKey: string) => void;
+  onOpenModelManager: (modelKey: string | null) => void;
 }
 
 const BG_COLORS = [
@@ -42,8 +54,13 @@ export default function ParamPanel({
   onDownload,
   processing,
   imageCropped,
+  presetId,
+  onPresetChange,
+  modelOptions,
+  selectedModelKey,
+  onSelectModel,
+  onOpenModelManager,
 }: ParamPanelProps) {
-  const [presetId, setPresetId] = useState('one-inch');
   const [sizeMode, setSizeMode] = useState<'mm' | 'px'>('mm');
   const [widthPx, setWidthPx] = useState(295);
   const [heightPx, setHeightPx] = useState(413);
@@ -54,7 +71,6 @@ export default function ParamPanel({
   const [bgColorInput, setBgColorInput] = useState('#FFFFFF');
   const [format, setFormat] = useState<'jpg' | 'png'>('jpg');
   const [maxSizeKb, setMaxSizeKb] = useState<string>('100');
-  const [mode, setMode] = useState<'fast' | 'precise'>('fast');
 
   const applyPreset = (spec: PhotoSpec) => {
     if (spec.width_px) setWidthPx(spec.width_px);
@@ -127,7 +143,7 @@ export default function ParamPanel({
       dpi,
       bg_color: bgColor,
       format,
-      mode,
+      model_key: selectedModelKey,
     };
     const sizeNum = parseInt(maxSizeKb, 10);
     if (!isNaN(sizeNum) && sizeNum > 0) {
@@ -145,7 +161,7 @@ export default function ParamPanel({
         <select
           className="param-select"
           value={presetId}
-          onChange={(e) => setPresetId(e.target.value)}
+          onChange={(e) => onPresetChange(e.target.value)}
         >
           {presets.map((p) => (
             <option key={p.id} value={p.id}>
@@ -153,6 +169,30 @@ export default function ParamPanel({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="param-group">
+        <label className="param-label">处理模式</label>
+        <select
+          className="param-select"
+          value={selectedModelKey}
+          onChange={(e) => onSelectModel(e.target.value)}
+        >
+          {modelOptions.map((model) => (
+            <option key={model.key} value={model.key}>
+              {model.name}{model.recommended ? '（推荐）' : ''}
+            </option>
+          ))}
+        </select>
+        <div className="param-actions" style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            onClick={() => onOpenModelManager(selectedModelKey)}
+          >
+            管理模式资源
+          </button>
+        </div>
       </div>
 
       <div className="param-group">
@@ -208,9 +248,7 @@ export default function ParamPanel({
 
       <div className="param-row">
         <div className="param-group half">
-          <label className="param-label">
-            宽度 ({sizeMode})
-          </label>
+          <label className="param-label">宽度 ({sizeMode})</label>
           <input
             type="number"
             className="param-input"
@@ -220,9 +258,7 @@ export default function ParamPanel({
           />
         </div>
         <div className="param-group half">
-          <label className="param-label">
-            高度 ({sizeMode})
-          </label>
+          <label className="param-label">高度 ({sizeMode})</label>
           <input
             type="number"
             className="param-input"
@@ -281,35 +317,11 @@ export default function ParamPanel({
         />
       </div>
 
-      <div className="param-group">
-        <label className="param-label">抠图模式</label>
-        <div className="radio-group">
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="mode"
-              checked={mode === 'fast'}
-              onChange={() => setMode('fast')}
-            />
-            <span>快速</span>
-          </label>
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="mode"
-              checked={mode === 'precise'}
-              onChange={() => setMode('precise')}
-            />
-            <span>精准</span>
-          </label>
-        </div>
-      </div>
-
       <div className="param-actions">
         <button
           type="button"
           className="btn btn-primary btn-block"
-          disabled={!imageCropped || processing}
+          disabled={!imageCropped || processing || !selectedModelKey}
           onClick={handleProcess}
         >
           {processing ? '处理中...' : '开始处理'}

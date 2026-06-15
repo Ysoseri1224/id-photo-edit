@@ -1,25 +1,38 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { DownloadProgressPayload, ProcessPhotoParams } from './modelService';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  /**
-   * 获取后端服务端口号
-   */
-  getSidecarPort: (): Promise<number> => {
-    return ipcRenderer.invoke('get-sidecar-port');
+  getModelStatus: () => {
+    return ipcRenderer.invoke('get-model-status');
   },
 
-  /**
-   * 打开保存对话框并将 base64 数据写入文件
-   * @param base64 - 文件内容的 base64 编码
-   * @param defaultName - 默认文件名
-   * @returns 保存的文件路径，取消时返回 null
-   */
-  saveFile: (base64: string, defaultName: string): Promise<string | null> => {
+  downloadModel: (modelKey: string) => {
+    return ipcRenderer.invoke('download-model', modelKey);
+  },
+
+  onModelDownloadProgress: (callback: (payload: DownloadProgressPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: DownloadProgressPayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on('model-download-progress', listener);
+    return () => {
+      ipcRenderer.removeListener('model-download-progress', listener);
+    };
+  },
+
+  deleteModel: (modelKey: string) => {
+    return ipcRenderer.invoke('delete-model', modelKey);
+  },
+
+  setSelectedModel: (modelKey: string) => {
+    return ipcRenderer.invoke('set-selected-model', modelKey);
+  },
+
+  processPhoto: (params: ProcessPhotoParams) => {
+    return ipcRenderer.invoke('process-photo', params);
+  },
+
+  saveFile: (base64: string, defaultName: string) => {
     return ipcRenderer.invoke('save-file', base64, defaultName);
   },
-
-  /**
-   * 当前操作系统平台
-   */
-  platform: process.platform as string,
 });

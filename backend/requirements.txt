@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-rembg[cpu]
-onnxruntime
-pillow
-opencv-python-headless
-numpy
-httpx
-tqdm
