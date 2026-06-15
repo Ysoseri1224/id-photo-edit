@@ -1,0 +1,70 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="105" y1="72" x2="1091" y2="579" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#153E75"/>
+    </linearGradient>
+    <linearGradient id="card" x1="756" y1="116" x2="1017" y2="485" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#22C55E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" rx="28" fill="url(#bg)"/>
+  <circle cx="1089" cy="110" r="163" fill="#38BDF8" fill-opacity="0.12"/>
+  <circle cx="121" cy="565" r="173" fill="#22C55E" fill-opacity="0.1"/>
+
+  <rect x="72" y="72" width="1056" height="486" rx="32" fill="white" fill-opacity="0.06" stroke="white" stroke-opacity="0.18"/>
+
+  <text x="112" y="176" fill="white" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="54" font-weight="700">
+    证件照处理工具
+  </text>
+  <text x="112" y="236" fill="#C7D2FE" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="24" font-weight="500">
+    本地裁剪 · 自动抠图 · 一键换底色 · 按规格导出
+  </text>
+
+  <rect x="112" y="292" width="154" height="48" rx="24" fill="#0EA5E9"/>
+  <text x="143" y="323" fill="white" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="22" font-weight="700">
+    Electron
+  </text>
+
+  <rect x="282" y="292" width="132" height="48" rx="24" fill="#111827"/>
+  <text x="319" y="323" fill="#93C5FD" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="22" font-weight="700">
+    React
+  </text>
+
+  <rect x="430" y="292" width="152" height="48" rx="24" fill="#0F766E"/>
+  <text x="470" y="323" fill="white" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="22" font-weight="700">
+    FastAPI
+  </text>
+
+  <text x="112" y="410" fill="white" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="30" font-weight="700">
+    支持场景
+  </text>
+  <text x="112" y="456" fill="#E2E8F0" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="22">
+    一寸 / 二寸 / 中国护照 / 美国签证 / 申根签证 / 驾照 / 简历照 / 自定义
+  </text>
+
+  <rect x="734" y="116" width="286" height="386" rx="26" fill="url(#card)"/>
+  <rect x="764" y="148" width="226" height="36" rx="18" fill="#CBD5E1"/>
+  <rect x="776" y="160" width="72" height="12" rx="6" fill="#475569"/>
+  <circle cx="962" cy="166" r="6" fill="#0EA5E9"/>
+  <circle cx="982" cy="166" r="6" fill="#22C55E"/>
+
+  <rect x="780" y="202" width="194" height="222" rx="20" fill="#BFDBFE"/>
+  <ellipse cx="877" cy="283" rx="50" ry="62" fill="#F8D9C2"/>
+  <path d="M831 278C831 243.206 851.072 214 877 214C902.928 214 923 243.206 923 278V314H831V278Z" fill="#111827"/>
+  <rect x="824" y="338" width="106" height="70" rx="18" fill="#475569"/>
+  <rect x="780" y="430" width="194" height="50" rx="18" fill="#2563EB"/>
+  <text x="833" y="462" fill="white" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="22" font-weight="700">
+    立即导出
+  </text>
+
+  <rect x="694" y="214" width="30" height="136" rx="15" fill="url(#accent)"/>
+  <rect x="690" y="370" width="38" height="38" rx="19" fill="#F8FAFC" fill-opacity="0.92"/>
+  <circle cx="709" cy="389" r="8" fill="#2563EB"/>
+</svg>

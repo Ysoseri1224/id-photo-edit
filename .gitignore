@@ -1,0 +1,11 @@
+node_modules/
+dist-electron/
+dist-frontend/
+build/
+backend/models/*.onnx
+backend/__pycache__/
+*.pyc
+*.log
+.env
+.vite/
+id-photo-tool-prompt.md

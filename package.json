@@ -1,0 +1,22 @@
+{
+  "name": "id-photo-tool",
+  "version": "1.0.0",
+  "description": "证件照处理桌面工具",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"python backend/main.py --port 8765\" \"cd frontend && npm run dev -- --strictPort\"",
+    "electron:dev": "concurrently \"cd frontend && npm run dev -- --strictPort\" \"tsc -p electron/tsconfig.json && electron .\"",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:frontend && npm run build:electron",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "typescript": "^5.5.0",
+    "concurrently": "^8.2.0"
+  },
+  "dependencies": {
+    "electron-is-dev": "^2.0.0"
+  }
+}
