@@ -1,6 +1,6 @@
 {
   "name": "id-photo-tool",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "证件照处理桌面工具",
   "main": "dist-electron/main.js",
   "scripts": {

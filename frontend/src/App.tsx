@@ -19,6 +19,56 @@ type MissingModelNotice = {
   message: string;
 };
 
+type ProcessingMeta = {
+  modelKey: string;
+  startedAt: number;
+  estimatedMs: number;
+};
+
+const PROCESSING_ESTIMATE_STORAGE_KEY = 'id-photo-tool.processing-estimates';
+const DEFAULT_PROCESSING_ESTIMATES: Record<string, number> = {
+  fast_hivision_modnet: 4000,
+  precise_birefnet_general: 12000,
+};
+
+function readProcessingEstimates(): Record<string, number> {
+  try {
+    const raw = window.localStorage.getItem(PROCESSING_ESTIMATE_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_PROCESSING_ESTIMATES };
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    return {
+      ...DEFAULT_PROCESSING_ESTIMATES,
+      ...parsed,
+    };
+  } catch {
+    return { ...DEFAULT_PROCESSING_ESTIMATES };
+  }
+}
+
+function writeProcessingEstimate(modelKey: string, actualMs: number): void {
+  const current = readProcessingEstimates();
+  const previous = current[modelKey] ?? DEFAULT_PROCESSING_ESTIMATES[modelKey] ?? actualMs;
+  const next = Math.round(previous * 0.6 + actualMs * 0.4);
+  const payload = {
+    ...current,
+    [modelKey]: Math.max(1000, next),
+  };
+  window.localStorage.setItem(PROCESSING_ESTIMATE_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function formatDurationLabel(ms: number): string {
+  const totalSeconds = Math.max(1, Math.ceil(ms / 1000));
+  if (totalSeconds < 60) {
+    return `${totalSeconds} 秒`;
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (seconds === 0) {
+    return `${minutes} 分钟`;
+  }
+  return `${minutes} 分 ${seconds} 秒`;
+}
+
 export default function App() {
   const [state, setState] = useState<AppState>('idle');
   const [showModelManager, setShowModelManager] = useState(false);
@@ -31,6 +81,8 @@ export default function App() {
   const [outputFormat, setOutputFormat] = useState('jpg');
   const [modelOptions, setModelOptions] = useState<ElectronModelStatusItem[]>([]);
   const [selectedModelKey, setSelectedModelKey] = useState('');
+  const [processingMeta, setProcessingMeta] = useState<ProcessingMeta | null>(null);
+  const [processingNow, setProcessingNow] = useState(Date.now());
 
   const { getModelStatus, processPhoto, saveFile, setSelectedModel } = useElectronApi();
 
@@ -51,6 +103,18 @@ export default function App() {
       setError(err instanceof Error ? err.message : '获取模型状态失败');
     });
   }, [refreshModels]);
+
+  useEffect(() => {
+    if (state !== 'processing') {
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setProcessingNow(Date.now());
+    }, 200);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [state]);
 
   const handleCrop = useCallback((base64: string) => {
     setCroppedImage(base64);
@@ -90,6 +154,13 @@ export default function App() {
       return;
     }
 
+    const estimates = readProcessingEstimates();
+    const startedAt = Date.now();
+    setProcessingMeta({
+      modelKey: params.model_key,
+      startedAt,
+      estimatedMs: estimates[params.model_key] ?? DEFAULT_PROCESSING_ESTIMATES[params.model_key] ?? 8000,
+    });
     setState('processing');
 
     try {
@@ -105,9 +176,12 @@ export default function App() {
         max_size_kb: params.max_size_kb,
       });
       setResult(processed);
+      writeProcessingEstimate(params.model_key, Date.now() - startedAt);
+      setProcessingMeta(null);
       setState('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : '处理失败');
+      setProcessingMeta(null);
       setState('cropping');
     }
   }, [croppedImage, getModelStatus, processPhoto]);
@@ -126,6 +200,7 @@ export default function App() {
     setState('idle');
     setError('');
     setMissingModelNotice(null);
+    setProcessingMeta(null);
   }, []);
 
   const openModelManager = useCallback((modelKey: string | null = null) => {
@@ -149,6 +224,17 @@ export default function App() {
     }
   }, [refreshModels, setSelectedModel]);
 
+  const processingElapsedMs = processingMeta ? processingNow - processingMeta.startedAt : 0;
+  const processingRatio = processingMeta
+    ? Math.min(0.95, Math.max(0.08, processingElapsedMs / processingMeta.estimatedMs))
+    : 0;
+  const processingRemainingMs = processingMeta
+    ? Math.max(processingMeta.estimatedMs - processingElapsedMs, 0)
+    : 0;
+  const processingModeName = processingMeta
+    ? modelOptions.find((item) => item.key === processingMeta.modelKey)?.name ?? '处理中'
+    : '';
+
   return (
     <div className="app">
       <header className="top-bar">
@@ -165,6 +251,22 @@ export default function App() {
           </svg>
         </button>
       </header>
+
+      {state === 'processing' && processingMeta && (
+        <div className="global-processing-bar">
+          <div className="global-processing-copy">
+            <span>{processingModeName}处理中</span>
+            <span>已处理 {formatDurationLabel(processingElapsedMs)}</span>
+            <span>预计还需 {formatDurationLabel(processingRemainingMs)}</span>
+          </div>
+          <div className="global-processing-track">
+            <div
+              className="global-processing-fill"
+              style={{ width: `${(processingRatio * 100).toFixed(1)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <main className="main-content">
         <div className="image-area">
