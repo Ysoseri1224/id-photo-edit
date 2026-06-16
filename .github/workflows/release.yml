@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的标签，例如 v2.1.0'
+        required: true
+        default: 'v2.1.0'
+      ref:
+        description: '要检出的分支或标签，通常与 tag 相同'
+        required: true
+        default: 'v2.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install helper build dependencies
+        run: pip install pyinstaller numpy onnxruntime opencv-python-headless Pillow
+
+      - name: Build matting helper
+        run: npm run build:matting-helper
+
+      - name: Build installer
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ github.event.inputs.tag }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+
+          $version = $tag
+          if ($version.StartsWith("v")) {
+            $version = $version.Substring(1)
+          }
+
+          $notesFile = "release-notes-$tag.md"
+          if (-not (Test-Path $notesFile)) {
+            $notesFile = "README.md"
+          }
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "notes_file=$notesFile" >> $env:GITHUB_OUTPUT
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          body_path: ${{ steps.meta.outputs.notes_file }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            release-build/id-photo-edit-${{ steps.meta.outputs.version }}-setup.exe
+            release-build/id-photo-edit-${{ steps.meta.outputs.version }}-setup.exe.blockmap
+            dist/matting-helper-win-x64.exe

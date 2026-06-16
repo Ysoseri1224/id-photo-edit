@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Ysoseri1224/id-photo-edit/releases/tag/v2.0.0"><img alt="Release" src="https://img.shields.io/github/v/release/Ysoseri1224/id-photo-edit?display_name=tag" /></a>
+  <a href="https://github.com/Ysoseri1224/id-photo-edit/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Ysoseri1224/id-photo-edit?display_name=tag" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Electron-blue" />
   <img alt="Frontend" src="https://img.shields.io/badge/frontend-React%20%2B%20Vite-61dafb" />
   <img alt="Matting" src="https://img.shields.io/badge/matting-unified%20helper-2563eb" />
@@ -166,6 +166,13 @@ id-photo-tool/
 
 - baseline 版本：[`v1.0.0`](https://github.com/Ysoseri1224/id-photo-edit/releases/tag/v1.0.0)
 - 统一 helper 重构版本：[`v2.0.0`](https://github.com/Ysoseri1224/id-photo-edit/releases/tag/v2.0.0)
+- 处理进度反馈版本：[`v2.1.0`](https://github.com/Ysoseri1224/id-photo-edit/releases/tag/v2.1.0)
+
+## 自动发布
+
+- 推送 `v*` 标签后，GitHub Actions 会自动在 Windows 环境构建安装包
+- 构建产物会自动发布到对应 GitHub Release，无需本地手工上传
+- 已有标签也可以通过 Actions 的手动触发入口重新补发
 
 ## 许可证
 
